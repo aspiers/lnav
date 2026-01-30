@@ -96,20 +96,6 @@ AC_SEARCH_LIBS(backtrace, execinfo)
 AC_SEARCH_LIBS(uc_width, unistring, [], [AC_MSG_ERROR([libunistring required to build])])
 LIBCURL_CHECK_CONFIG([], [7.23.0], [], [AC_MSG_ERROR([libcurl required to build])], [test x"${enable_static}" = x"yes"])
 
-dnl libgpm is required on some systems where there is a misconfigured ncurses
-dnl and gpm libraries with interdependencies. This check is not required on OS X.
-AS_CASE(["$host_os"],
-    [darwin*],
-    [],
-    AC_SEARCH_LIBS(Gpm_Open, [gpm :libgpm.so.2],
-       AS_VAR_SET(HAVE_GPM, "1"),
-       AC_MSG_WARN(m4_join([ ],
-                   [libgpm not found. If build fails later],
-                   [consider installing gpm dev package])dnl
-       )
-    )
-)
-
 AC_CHECK_HEADERS(execinfo.h pty.h util.h zlib.h bzlib.h libutil.h sys/ttydefaults.h libproc.h uniwidth.h sys/sysctl.h windows.h)
 
 AS_IF([test "x$ac_cv_header_uniwidth_h" != "xyes"], [
@@ -201,7 +187,7 @@ AS_VAR_SET(static_lib_list,
 AS_VAR_SET(static_lib_list,
            ["$static_lib_list libpcre2-8.a libbz2.a"])
 AS_VAR_SET(static_lib_list,
-           ["$static_lib_list libgpm.a libcurl.a libcrypto.a libssl.a libssh2.a"])
+           ["$static_lib_list libcurl.a libcrypto.a libssl.a libssh2.a"])
 AS_VAR_SET(static_lib_list,
            ["$static_lib_list libnghttp2.a libexpat.a liblzma.a libcrypto.a libzstd.a libldap.a"])
 AS_VAR_SET(static_lib_list,
@@ -258,32 +244,7 @@ AC_SUBST(STATIC_LDFLAGS)
 AS_CASE(["$host_os"],
     [darwin*],
     [LDFLAGS="$LDFLAGS -framework CoreFoundation"],
-    [
-    curses_lib=$(echo $CURSES_LIB | sed -e 's/-l//')
-    AS_IF([test $? -eq 0],
-        [
-        AS_CASE(["$curses_lib"],
-            [ncurses*],
-            [AS_VAR_SET_IF(HAVE_GPM, [],
-                [
-                AC_MSG_NOTICE([Checking for libgpm dependency])
-                AS_VAR_SET(saved_LDFLAGS, $LDFLAGS)
-                AS_VAR_SET(LDFLAGS, "$STATIC_LDFLAGS $LDFLAGS")
-                AS_VAR_SET(saved_LIBS, $LIBS)
-                AC_CHECK_LIB($curses_lib, mousemask,
-                    [
-                    AS_VAR_SET(LDFLAGS, $saved_LDFLAGS)
-                    AS_VAR_SET(LIBS, $saved_LIBS)
-                    ],
-                    AC_MSG_ERROR([libgpm development libraries are required to build]))dnl
-                ])dnl
-            ])
-        ],
-        [
-        AC_MSG_WARN([Unable to test for dependepncy on gpm.])
-        AC_MSG_WARN([If build fails during make consider installing libgpm development libraries.])
-        ])dnl
-    ]dnl
+    []
 )
 
 saved_location=$(pwd)

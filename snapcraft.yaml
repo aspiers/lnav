@@ -73,13 +73,11 @@ parts:
       - libunistring-dev
       - zlib1g-dev
       - libbz2-dev
-      - libgpm-dev
     stage-packages:
       - zlib1g
       - git-core
       - libcurl4
       - libpcre2-8-0
-      - libgpm2
       - libarchive13
       - libicu70
       - libxml2
