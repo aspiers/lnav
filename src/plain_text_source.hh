@@ -67,10 +67,6 @@ public:
 
     plain_text_source(const string_fragment& text);
 
-    plain_text_source(const std::vector<std::string>& text_lines);
-
-    plain_text_source(const std::vector<attr_line_t>& text_lines);
-
     plain_text_source& set_reverse_selection(bool val)
     {
         this->tds_reverse_selection = val;

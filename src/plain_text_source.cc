@@ -29,26 +29,11 @@
 
 #include "plain_text_source.hh"
 
+#include "base/intern_string.hh"
 #include "base/itertools.hh"
 #include "config.h"
 #include "document.sections.hh"
 #include "scn/scan.h"
-
-static std::vector<plain_text_source::text_line>
-to_text_line(const std::vector<attr_line_t>& lines)
-{
-    file_off_t off = 0;
-
-    return lines | lnav::itertools::map([&off](const auto& elem) {
-               auto retval = plain_text_source::text_line{
-                   off,
-                   elem,
-               };
-
-               off += elem.length() + 1;
-               return retval;
-           });
-}
 
 plain_text_source::plain_text_source(const string_fragment& text)
 {
@@ -58,17 +43,6 @@ plain_text_source::plain_text_source(const string_fragment& text)
         this->tds_lines.emplace_back(start, attr_line_t::from_ansi_frag(line));
         start += line.length();
     }
-    this->tds_longest_line = this->compute_longest_line();
-}
-
-plain_text_source::plain_text_source(const std::vector<std::string>& text_lines)
-{
-    this->replace_with(text_lines);
-}
-
-plain_text_source::plain_text_source(const std::vector<attr_line_t>& text_lines)
-    : tds_lines(to_text_line(text_lines))
-{
     this->tds_longest_line = this->compute_longest_line();
 }
 

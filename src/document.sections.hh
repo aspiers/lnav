@@ -32,7 +32,9 @@
 
 #include <map>
 #include <set>
+#include <optional>
 #include <string>
+#include <memory>
 #include <vector>
 
 #include "base/attr_line.hh"

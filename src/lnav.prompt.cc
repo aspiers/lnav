@@ -511,6 +511,8 @@ prompt::rl_history(textinput_curses& tc)
             case context_t::search:
                 readline_regex_highlighter(al, std::nullopt);
                 break;
+            default:
+                break;
         }
         poss.emplace_back(al.move());
     };
