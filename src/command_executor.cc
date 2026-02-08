@@ -384,10 +384,12 @@ execute_sql(exec_context& ec, const std::string& sql, std::string& alt_msg)
 
     require(!ec.ec_source.empty());
     const auto& source = ec.ec_source.back();
-    sql_progress_guard progress_guard(sql_progress,
-                                      sql_progress_finished,
-                                      source.s_location,
-                                      source.s_content);
+    sql_progress_guard progress_guard(
+        sql_progress,
+        sql_progress_finished,
+        source.s_location,
+        source.s_content,
+        !ec.get_provenance<exec_context::format_rewrite>().has_value());
     gettimeofday(&start_tv, nullptr);
 
     const auto* curr_stmt = stmt_str.c_str();

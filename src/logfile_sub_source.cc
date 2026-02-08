@@ -68,6 +68,7 @@
 #include "yajlpp/yajlpp_def.hh"
 
 using namespace std::chrono_literals;
+using namespace std::string_literals;
 using namespace lnav::roles::literals;
 
 const DIST_SLICE(bm_types) bookmark_type_t logfile_sub_source::BM_FILES("file");
@@ -250,7 +251,7 @@ logfile_sub_source::text_value_for_line(textview_curses& tc,
 {
     if (this->lss_indexing_in_progress) {
         value_out = "";
-        this->lss_token_attrs.clear();
+        this->lss_token_al.al_attrs.clear();
         return {};
     }
 
@@ -292,27 +293,29 @@ logfile_sub_source::text_value_for_line(textview_curses& tc,
     this->lss_token_file = (*this->lss_token_file_data)->get_file();
     this->lss_token_line = this->lss_token_file->begin() + line;
 
-    this->lss_token_attrs.clear();
+    this->lss_token_al.clear();
     this->lss_token_values.clear();
     this->lss_share_manager.invalidate_refs();
-    if (flags & text_sub_source::RF_FULL) {
+    if (flags & RF_FULL) {
         shared_buffer_ref sbr;
 
         this->lss_token_file->read_full_message(this->lss_token_line, sbr);
-        this->lss_token_value = to_string(sbr);
+        this->lss_token_al.al_string = to_string(sbr);
         if (sbr.get_metadata().m_has_ansi) {
-            scrub_ansi_string(this->lss_token_value, &this->lss_token_attrs);
+            scrub_ansi_string(this->lss_token_al.al_string,
+                              &this->lss_token_al.al_attrs);
             sbr.get_metadata().m_has_ansi = false;
         }
     } else {
         auto sub_opts = subline_options{};
         sub_opts.scrub_invalid_utf8 = false;
-        this->lss_token_value
+        this->lss_token_al.al_string
             = this->lss_token_file->read_line(this->lss_token_line, sub_opts)
                   .map([](auto sbr) { return to_string(sbr); })
                   .unwrapOr({});
         if (this->lss_token_line->has_ansi()) {
-            scrub_ansi_string(this->lss_token_value, &this->lss_token_attrs);
+            scrub_ansi_string(this->lss_token_al.al_string,
+                              &this->lss_token_al.al_attrs);
         }
     }
     this->lss_token_shift_start = 0;
@@ -320,17 +323,56 @@ logfile_sub_source::text_value_for_line(textview_curses& tc,
 
     auto format = this->lss_token_file->get_format();
 
-    value_out = this->lss_token_value;
+    value_out = this->lss_token_al.al_string;
 
     auto& sbr = this->lss_token_values.lvv_sbr;
 
     sbr.share(this->lss_share_manager,
-              (char*) this->lss_token_value.c_str(),
-              this->lss_token_value.size());
+              (char*) this->lss_token_al.al_string.c_str(),
+              this->lss_token_al.al_string.size());
     format->annotate(this->lss_token_file.get(),
                      line,
-                     this->lss_token_attrs,
+                     this->lss_token_al.al_attrs,
                      this->lss_token_values);
+
+    for (const auto& hl : format->lf_highlighters) {
+        auto hl_range = line_range{0, -1};
+        auto value_iter = this->lss_token_values.lvv_values.end();
+        if (!hl.h_field.empty()) {
+            value_iter = std::find_if(this->lss_token_values.lvv_values.begin(),
+                                      this->lss_token_values.lvv_values.end(),
+                                      logline_value_name_cmp(&hl.h_field));
+            if (value_iter == this->lss_token_values.lvv_values.end()) {
+                continue;
+            }
+            hl_range = value_iter->lv_origin;
+        }
+        if (hl.annotate(this->lss_token_al, hl_range)
+            && value_iter != this->lss_token_values.lvv_values.end())
+        {
+            value_iter->lv_highlighted = true;
+        }
+    }
+
+    for (const auto& hl : this->lss_highlighters) {
+        auto hl_range = line_range{0, -1};
+        auto value_iter = this->lss_token_values.lvv_values.end();
+        if (!hl.h_field.empty()) {
+            value_iter = std::find_if(this->lss_token_values.lvv_values.begin(),
+                                      this->lss_token_values.lvv_values.end(),
+                                      logline_value_name_cmp(&hl.h_field));
+            if (value_iter == this->lss_token_values.lvv_values.end()) {
+                continue;
+            }
+            hl_range = value_iter->lv_origin;
+        }
+        if (hl.annotate(this->lss_token_al, hl_range)
+            && value_iter != this->lss_token_values.lvv_values.end())
+        {
+            value_iter->lv_highlighted = true;
+        }
+    }
+
     if (flags & RF_REWRITE) {
         exec_context ec(
             &this->lss_token_values, pretty_sql_callback, pretty_pipe_callback);
@@ -343,18 +385,19 @@ logfile_sub_source::text_value_for_line(textview_curses& tc,
         ec.ec_label_source_stack.push_back(&rewrite_label_source);
         add_ansi_vars(ec.ec_global_vars);
         add_global_vars(ec);
-        format->rewrite(ec, sbr, this->lss_token_attrs, rewritten_line);
-        this->lss_token_value.assign(rewritten_line);
-        value_out = this->lss_token_value;
+        format->rewrite(ec, sbr, this->lss_token_al.al_attrs, rewritten_line);
+        this->lss_token_al.al_string.assign(rewritten_line);
+        value_out = this->lss_token_al.al_string;
     }
 
     {
-        auto lr = line_range{0, (int) this->lss_token_value.length()};
-        this->lss_token_attrs.emplace_back(lr, SA_ORIGINAL_LINE.value());
+        auto lr = line_range{0, (int) this->lss_token_al.al_string.length()};
+        this->lss_token_al.al_attrs.emplace_back(lr, SA_ORIGINAL_LINE.value());
     }
 
     std::optional<exttm> adjusted_tm;
-    auto time_attr = find_string_attr(this->lss_token_attrs, &L_TIMESTAMP);
+    auto time_attr
+        = find_string_attr(this->lss_token_al.al_attrs, &L_TIMESTAMP);
     if (!this->lss_token_line->is_continued() && !format->lf_formatted_lines
         && (this->lss_token_file->is_time_adjusted()
             || ((format->lf_timestamp_flags & ETF_ZONE_SET
@@ -365,10 +408,12 @@ logfile_sub_source::text_value_for_line(textview_curses& tc,
             || !(format->lf_timestamp_flags & ETF_MONTH_SET))
         && format->lf_date_time.dts_fmt_lock != -1)
     {
-        if (time_attr != this->lss_token_attrs.end()) {
+        if (time_attr != this->lss_token_al.al_attrs.end()) {
             const auto time_range = time_attr->sa_range;
-            const auto time_sf = string_fragment::from_str_range(
-                this->lss_token_value, time_range.lr_start, time_range.lr_end);
+            const auto time_sf
+                = string_fragment::from_str_range(this->lss_token_al.al_string,
+                                                  time_range.lr_start,
+                                                  time_range.lr_end);
             adjusted_tm = format->tm_for_display(this->lss_token_line, time_sf);
 
             char buffer[128];
@@ -409,7 +454,7 @@ logfile_sub_source::text_value_for_line(textview_curses& tc,
     value_out.insert(0, 1, ' ');
     this->lss_time_column_size = 0;
     if (this->lss_line_context == line_context_t::time_column) {
-        if (time_attr != this->lss_token_attrs.end()) {
+        if (time_attr != this->lss_token_al.al_attrs.end()) {
             const char* fmt;
             if (this->lss_all_timestamp_flags
                 & (ETF_MICROS_SET | ETF_NANOS_SET))
@@ -422,10 +467,10 @@ logfile_sub_source::text_value_for_line(textview_curses& tc,
             }
             if (!adjusted_tm) {
                 const auto time_range = time_attr->sa_range;
-                const auto time_sf
-                    = string_fragment::from_str_range(this->lss_token_value,
-                                                      time_range.lr_start,
-                                                      time_range.lr_end);
+                const auto time_sf = string_fragment::from_str_range(
+                    this->lss_token_al.al_string,
+                    time_range.lr_start,
+                    time_range.lr_end);
                 adjusted_tm
                     = format->tm_for_display(this->lss_token_line, time_sf);
             }
@@ -454,14 +499,15 @@ logfile_sub_source::text_value_for_line(textview_curses& tc,
                 this->lss_time_column_padding = 0;
             }
             value_out.insert(1, buffer, this->lss_time_column_size);
-            this->lss_token_attrs.emplace_back(time_attr->sa_range,
-                                               SA_REPLACED.value());
+            this->lss_token_al.al_attrs.emplace_back(time_attr->sa_range,
+                                                     SA_REPLACED.value());
         }
         if (format->lf_level_hideable) {
-            auto level_attr = find_string_attr(this->lss_token_attrs, &L_LEVEL);
-            if (level_attr != this->lss_token_attrs.end()) {
-                this->lss_token_attrs.emplace_back(level_attr->sa_range,
-                                                   SA_REPLACED.value());
+            auto level_attr
+                = find_string_attr(this->lss_token_al.al_attrs, &L_LEVEL);
+            if (level_attr != this->lss_token_al.al_attrs.end()) {
+                this->lss_token_al.al_attrs.emplace_back(level_attr->sa_range,
+                                                         SA_REPLACED.value());
             }
         }
     } else if (this->lss_line_context < line_context_t::none) {
@@ -511,8 +557,7 @@ logfile_sub_source::text_attrs_for_line(textview_curses& lv,
     line_range lr;
     int time_offset_end = 0;
     text_attrs attrs;
-
-    value_out = this->lss_token_attrs;
+    auto* format = this->lss_token_file->get_format_ptr();
 
     if ((row + 1) < (int) this->lss_filtered_index.size()) {
         next_line = this->find_line(this->at(vis_line_t(row + 1)));
@@ -530,24 +575,24 @@ logfile_sub_source::text_attrs_for_line(textview_curses& lv,
 
     lr.lr_start = 0;
     lr.lr_end = -1;
-    value_out.emplace_back(
+    this->lss_token_al.al_attrs.emplace_back(
         lr, SA_LEVEL.value(this->lss_token_line->get_msg_level()));
 
     lr.lr_start = time_offset_end;
     lr.lr_end = -1;
 
     if (!attrs.empty()) {
-        value_out.emplace_back(lr, VC_STYLE.value(attrs));
+        this->lss_token_al.al_attrs.emplace_back(lr, VC_STYLE.value(attrs));
     }
 
     if (this->lss_token_line->get_msg_level() == log_level_t::LEVEL_INVALID) {
-        for (auto& token_attr : this->lss_token_attrs) {
+        for (auto& token_attr : this->lss_token_al.al_attrs) {
             if (token_attr.sa_type != &SA_INVALID) {
                 continue;
             }
 
-            value_out.emplace_back(token_attr.sa_range,
-                                   VC_ROLE.value(role_t::VCR_INVALID_MSG));
+            this->lss_token_al.al_attrs.emplace_back(
+                token_attr.sa_range, VC_ROLE.value(role_t::VCR_INVALID_MSG));
         }
     }
 
@@ -561,8 +606,8 @@ logfile_sub_source::text_attrs_for_line(textview_curses& lv,
         }
 
         if (line_value.lv_meta.is_hidden()) {
-            value_out.emplace_back(line_value.lv_origin,
-                                   SA_HIDDEN.value(ui_icon_t::hidden));
+            this->lss_token_al.al_attrs.emplace_back(
+                line_value.lv_origin, SA_HIDDEN.value(ui_icon_t::hidden));
         }
 
         if (!line_value.lv_meta.lvm_identifier
@@ -571,17 +616,21 @@ logfile_sub_source::text_attrs_for_line(textview_curses& lv,
             continue;
         }
 
-        value_out.emplace_back(line_value.lv_origin,
-                               VC_ROLE.value(role_t::VCR_IDENTIFIER));
+        if (line_value.lv_highlighted) {
+            continue;
+        }
+
+        this->lss_token_al.al_attrs.emplace_back(
+            line_value.lv_origin, VC_ROLE.value(role_t::VCR_IDENTIFIER));
     }
 
     if (this->lss_token_shift_size) {
-        shift_string_attrs(value_out,
+        shift_string_attrs(this->lss_token_al.al_attrs,
                            this->lss_token_shift_start + 1,
                            this->lss_token_shift_size);
     }
 
-    shift_string_attrs(value_out, 0, 1);
+    shift_string_attrs(this->lss_token_al.al_attrs, 0, 1);
 
     lr.lr_start = 0;
     lr.lr_end = 1;
@@ -600,7 +649,7 @@ logfile_sub_source::text_attrs_for_line(textview_curses& lv,
         } else if (is_last_for_file) {
             graph = NCACS_LLCORNER;
         }
-        value_out.emplace_back(lr, VC_GRAPHIC.value(graph));
+        this->lss_token_al.al_attrs.emplace_back(lr, VC_GRAPHIC.value(graph));
 
         if (!(this->lss_token_flags & RF_FULL)) {
             const auto& bv_search = bm[&textview_curses::BM_SEARCH];
@@ -608,15 +657,16 @@ logfile_sub_source::text_attrs_for_line(textview_curses& lv,
             if (bv_search.bv_tree.exists(vis_line_t(row))) {
                 lr.lr_start = 0;
                 lr.lr_end = 1;
-                value_out.emplace_back(
+                this->lss_token_al.al_attrs.emplace_back(
                     lr, VC_STYLE.value(text_attrs::with_reverse()));
             }
         }
     }
 
-    value_out.emplace_back(lr,
-                           VC_STYLE.value(vc.attrs_for_ident(
-                               this->lss_token_file->get_filename())));
+    this->lss_token_al.al_attrs.emplace_back(
+        lr,
+        VC_STYLE.value(
+            vc.attrs_for_ident(this->lss_token_file->get_filename())));
 
     if (this->lss_line_context < line_context_t::none) {
         size_t file_offset_end
@@ -624,15 +674,17 @@ logfile_sub_source::text_attrs_for_line(textview_curses& lv,
             ? this->lss_filename_width
             : this->lss_basename_width;
 
-        shift_string_attrs(value_out, 0, file_offset_end);
+        shift_string_attrs(this->lss_token_al.al_attrs, 0, file_offset_end);
 
         lr.lr_start = 0;
         lr.lr_end = file_offset_end + 1;
-        value_out.emplace_back(lr,
-                               VC_STYLE.value(vc.attrs_for_ident(
-                                   this->lss_token_file->get_filename())));
+        this->lss_token_al.al_attrs.emplace_back(
+            lr,
+            VC_STYLE.value(
+                vc.attrs_for_ident(this->lss_token_file->get_filename())));
     } else if (this->lss_time_column_size > 0) {
-        shift_string_attrs(value_out, 1, this->lss_time_column_size);
+        shift_string_attrs(
+            this->lss_token_al.al_attrs, 1, this->lss_time_column_size);
 
         ui_icon_t icon;
         switch (this->lss_token_line->get_msg_level()) {
@@ -674,20 +726,21 @@ logfile_sub_source::text_attrs_for_line(textview_curses& lv,
         auto extra_space_size = this->lss_time_column_padding;
         lr.lr_start = 1 + this->lss_time_column_size - 1 - extra_space_size;
         lr.lr_end = 1 + this->lss_time_column_size - extra_space_size;
-        value_out.emplace_back(lr, VC_ICON.value(icon));
+        this->lss_token_al.al_attrs.emplace_back(lr, VC_ICON.value(icon));
         if (this->tss_view->is_selectable()
             && this->tss_view->get_selection() != row)
         {
             lr.lr_start = 1;
             lr.lr_end = 1 + this->lss_time_column_size - 2 - extra_space_size;
-            value_out.emplace_back(lr, VC_ROLE.value(role_t::VCR_TIME_COLUMN));
+            this->lss_token_al.al_attrs.emplace_back(
+                lr, VC_ROLE.value(role_t::VCR_TIME_COLUMN));
             if (this->lss_token_line->is_time_skewed()) {
-                value_out.emplace_back(lr,
-                                       VC_ROLE.value(role_t::VCR_SKEWED_TIME));
+                this->lss_token_al.al_attrs.emplace_back(
+                    lr, VC_ROLE.value(role_t::VCR_SKEWED_TIME));
             }
             lr.lr_start = 1 + this->lss_time_column_size - 2 - extra_space_size;
             lr.lr_end = 1 + this->lss_time_column_size - 1 - extra_space_size;
-            value_out.emplace_back(
+            this->lss_token_al.al_attrs.emplace_back(
                 lr, VC_ROLE.value(role_t::VCR_TIME_COLUMN_TO_TEXT));
         }
     }
@@ -697,11 +750,12 @@ logfile_sub_source::text_attrs_for_line(textview_curses& lv,
         lr.lr_start = 0;
         lr.lr_end = time_offset_end;
 
-        shift_string_attrs(value_out, 0, time_offset_end);
+        shift_string_attrs(this->lss_token_al.al_attrs, 0, time_offset_end);
 
-        value_out.emplace_back(lr, VC_ROLE.value(role_t::VCR_OFFSET_TIME));
-        value_out.emplace_back(line_range(12, 13),
-                               VC_GRAPHIC.value(NCACS_VLINE));
+        this->lss_token_al.al_attrs.emplace_back(
+            lr, VC_ROLE.value(role_t::VCR_OFFSET_TIME));
+        this->lss_token_al.al_attrs.emplace_back(line_range(12, 13),
+                                                 VC_GRAPHIC.value(NCACS_VLINE));
 
         auto bar_role = role_t::VCR_NONE;
 
@@ -716,15 +770,17 @@ logfile_sub_source::text_attrs_for_line(textview_curses& lv,
                 break;
         }
         if (bar_role != role_t::VCR_NONE) {
-            value_out.emplace_back(line_range(12, 13), VC_ROLE.value(bar_role));
+            this->lss_token_al.al_attrs.emplace_back(line_range(12, 13),
+                                                     VC_ROLE.value(bar_role));
         }
     }
 
     lr.lr_start = 0;
     lr.lr_end = -1;
-    value_out.emplace_back(lr, L_FILE.value(this->lss_token_file));
-    value_out.emplace_back(
-        lr, SA_FORMAT.value(this->lss_token_file->get_format()->get_name()));
+    this->lss_token_al.al_attrs.emplace_back(
+        lr, L_FILE.value(this->lss_token_file));
+    this->lss_token_al.al_attrs.emplace_back(
+        lr, SA_FORMAT.value(format->get_name()));
 
     {
         auto line_meta_context = this->get_bookmark_metadata_context(
@@ -732,7 +788,7 @@ logfile_sub_source::text_attrs_for_line(textview_curses& lv,
         if (line_meta_context.bmc_current_metadata) {
             lr.lr_start = 0;
             lr.lr_end = -1;
-            value_out.emplace_back(
+            this->lss_token_al.al_attrs.emplace_back(
                 lr,
                 L_PARTITION.value(
                     line_meta_context.bmc_current_metadata.value()));
@@ -743,37 +799,41 @@ logfile_sub_source::text_attrs_for_line(textview_curses& lv,
         if (line_meta_opt) {
             lr.lr_start = 0;
             lr.lr_end = -1;
-            value_out.emplace_back(lr, L_META.value(line_meta_opt.value()));
+            this->lss_token_al.al_attrs.emplace_back(
+                lr, L_META.value(line_meta_opt.value()));
         }
     }
 
-    auto src_file_attr = get_string_attr(value_out, SA_SRC_FILE);
+    auto src_file_attr
+        = get_string_attr(this->lss_token_al.al_attrs, SA_SRC_FILE);
     if (src_file_attr) {
         auto lr = src_file_attr->saw_string_attr->sa_range;
         lr.lr_end = lr.lr_start + 1;
-        value_out.emplace_back(lr,
-                               VC_STYLE.value(text_attrs::with_underline()));
-        value_out.emplace_back(lr,
-                               VC_COMMAND.value(ui_command{
-                                   source_location{},
-                                   ":toggle-breakpoint",
-                               }));
+        this->lss_token_al.al_attrs.emplace_back(
+            lr, VC_STYLE.value(text_attrs::with_underline()));
+        this->lss_token_al.al_attrs.emplace_back(lr,
+                                                 VC_COMMAND.value(ui_command{
+                                                     source_location{},
+                                                     ":toggle-breakpoint",
+                                                 }));
     }
 
     if (this->lss_time_column_size == 0) {
         if (this->lss_token_file->is_time_adjusted()) {
-            auto time_range = find_string_attr_range(value_out, &L_TIMESTAMP);
+            auto time_range = find_string_attr_range(
+                this->lss_token_al.al_attrs, &L_TIMESTAMP);
 
             if (time_range.lr_end != -1) {
-                value_out.emplace_back(
+                this->lss_token_al.al_attrs.emplace_back(
                     time_range, VC_ROLE.value(role_t::VCR_ADJUSTED_TIME));
             }
         } else if (this->lss_token_line->is_time_skewed()) {
-            auto time_range = find_string_attr_range(value_out, &L_TIMESTAMP);
+            auto time_range = find_string_attr_range(
+                this->lss_token_al.al_attrs, &L_TIMESTAMP);
 
             if (time_range.lr_end != -1) {
-                value_out.emplace_back(time_range,
-                                       VC_ROLE.value(role_t::VCR_SKEWED_TIME));
+                this->lss_token_al.al_attrs.emplace_back(
+                    time_range, VC_ROLE.value(role_t::VCR_SKEWED_TIME));
             }
         }
     }
@@ -784,21 +844,24 @@ logfile_sub_source::text_attrs_for_line(textview_curses& lv,
     {
         auto color = styling::color_unit::from_palette(
             lnav::enums::to_underlying(ansi_color::red));
-        value_out.emplace_back(line_range{0, 1}, VC_BACKGROUND.value(color));
+        this->lss_token_al.al_attrs.emplace_back(line_range{0, 1},
+                                                 VC_BACKGROUND.value(color));
     }
     if (this->ttt_preview_min_time
         && this->lss_token_line->get_timeval() < this->ttt_preview_min_time)
     {
         auto color = styling::color_unit::from_palette(
             lnav::enums::to_underlying(ansi_color::red));
-        value_out.emplace_back(line_range{0, 1}, VC_BACKGROUND.value(color));
+        this->lss_token_al.al_attrs.emplace_back(line_range{0, 1},
+                                                 VC_BACKGROUND.value(color));
     }
     if (this->ttt_preview_max_time
         && this->ttt_preview_max_time < this->lss_token_line->get_timeval())
     {
         auto color = styling::color_unit::from_palette(
             lnav::enums::to_underlying(ansi_color::red));
-        value_out.emplace_back(line_range{0, 1}, VC_BACKGROUND.value(color));
+        this->lss_token_al.al_attrs.emplace_back(line_range{0, 1},
+                                                 VC_BACKGROUND.value(color));
     }
     if (!this->lss_token_line->is_continued()) {
         if (this->lss_preview_filter_stmt != nullptr) {
@@ -810,7 +873,7 @@ logfile_sub_source::text_attrs_for_line(textview_curses& lv,
             if (eval_res.isErr()) {
                 color = palette_color{
                     lnav::enums::to_underlying(ansi_color::yellow)};
-                value_out.emplace_back(
+                this->lss_token_al.al_attrs.emplace_back(
                     line_range{0, -1},
                     SA_ERROR.value(
                         eval_res.unwrapErr().to_attr_line().get_string()));
@@ -823,13 +886,13 @@ logfile_sub_source::text_attrs_for_line(textview_curses& lv,
                 } else {
                     color = palette_color{
                         lnav::enums::to_underlying(ansi_color::red)};
-                    value_out.emplace_back(
+                    this->lss_token_al.al_attrs.emplace_back(
                         line_range{0, 1},
                         VC_STYLE.value(text_attrs::with_blink()));
                 }
             }
-            value_out.emplace_back(line_range{0, 1},
-                                   VC_BACKGROUND.value(color));
+            this->lss_token_al.al_attrs.emplace_back(
+                line_range{0, 1}, VC_BACKGROUND.value(color));
         }
 
         auto sql_filter_opt = this->get_sql_filter();
@@ -845,16 +908,19 @@ logfile_sub_source::text_attrs_for_line(textview_curses& lv,
                     eval_res.unwrapErr().to_attr_line().get_string());
                 auto cu = styling::color_unit::from_palette(palette_color{
                     lnav::enums::to_underlying(ansi_color::yellow)});
-                value_out.emplace_back(line_range{0, -1}, SA_ERROR.value(msg));
-                value_out.emplace_back(line_range{0, 1},
-                                       VC_BACKGROUND.value(cu));
+                this->lss_token_al.al_attrs.emplace_back(line_range{0, -1},
+                                                         SA_ERROR.value(msg));
+                this->lss_token_al.al_attrs.emplace_back(
+                    line_range{0, 1}, VC_BACKGROUND.value(cu));
             }
         }
     }
+
+    value_out = std::move(this->lss_token_al.al_attrs);
 }
 
 struct logline_cmp {
-    logline_cmp(logfile_sub_source& lc) : llss_controller(lc) {}
+    explicit logline_cmp(logfile_sub_source& lc) : llss_controller(lc) {}
 
     bool operator()(const logfile_sub_source::indexed_content& lhs,
                     const logfile_sub_source::indexed_content& rhs) const
@@ -3181,14 +3247,14 @@ logfile_sub_source::text_size_for_line(textview_curses& tc,
         auto line_width = string_fragment::from_str(value).column_width();
         if (this->lss_line_context == line_context_t::time_column) {
             auto time_attr
-                = find_string_attr(this->lss_token_attrs, &L_TIMESTAMP);
-            if (time_attr != this->lss_token_attrs.end()) {
+                = find_string_attr(this->lss_token_al.al_attrs, &L_TIMESTAMP);
+            if (time_attr != this->lss_token_al.al_attrs.end()) {
                 line_width -= time_attr->sa_range.length();
                 auto format = this->lss_token_file->get_format();
                 if (format->lf_level_hideable) {
-                    auto level_attr
-                        = find_string_attr(this->lss_token_attrs, &L_LEVEL);
-                    if (level_attr != this->lss_token_attrs.end()) {
+                    auto level_attr = find_string_attr(
+                        this->lss_token_al.al_attrs, &L_LEVEL);
+                    if (level_attr != this->lss_token_al.al_attrs.end()) {
                         line_width -= level_attr->sa_range.length();
                     }
                 }
@@ -3491,6 +3557,18 @@ logfile_sub_source::reload_config(error_reporter& reporter)
 }
 
 void
+logfile_sub_source::clear_preview()
+{
+    text_sub_source::clear_preview();
+
+    this->set_preview_sql_filter(nullptr);
+    auto last = std::remove_if(this->lss_highlighters.begin(),
+                               this->lss_highlighters.end(),
+                               [](const auto& hl) { return hl.h_preview; });
+    this->lss_highlighters.erase(last, this->lss_highlighters.end());
+}
+
+void
 logfile_sub_source::add_commands_for_session(
     const std::function<void(const std::string&)>& receiver)
 {
@@ -3503,6 +3581,27 @@ logfile_sub_source::add_commands_for_session(
     auto filter_expr = this->get_sql_filter_text();
     if (!filter_expr.empty()) {
         receiver(fmt::format(FMT_STRING("filter-expr {}"), filter_expr));
+    }
+
+    for (const auto& hl : this->lss_highlighters) {
+        auto cmd = "highlight-field "s;
+        if (hl.h_attrs.has_style(text_attrs::style::bold)) {
+            cmd += "--bold ";
+        }
+        if (hl.h_attrs.has_style(text_attrs::style::underline)) {
+            cmd += "--underline ";
+        }
+        if (hl.h_attrs.has_style(text_attrs::style::blink)) {
+            cmd += "--blink ";
+        }
+        if (hl.h_attrs.has_style(text_attrs::style::struck)) {
+            cmd += "--strike ";
+        }
+        if (hl.h_attrs.has_style(text_attrs::style::italic)) {
+            cmd += "--italic ";
+        }
+        cmd += hl.h_field.to_string() + " " + hl.h_regex->get_pattern();
+        receiver(cmd);
     }
 
     for (const auto& format : log_format::get_root_formats()) {

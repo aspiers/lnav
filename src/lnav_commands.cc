@@ -52,6 +52,7 @@
 #include "base/string_util.hh"
 #include "bound_tags.hh"
 #include "breadcrumb_curses.hh"
+#include "CLI/App.hpp"
 #include "cmd.parser.hh"
 #include "command_executor.hh"
 #include "config.h"
@@ -1328,20 +1329,128 @@ com_highlight(exec_context& ec,
             retval = "";
         } else {
             hm[{highlight_source_t::INTERACTIVE, args[1]}] = hl;
-
-#if 0
-            if (lnav_data.ld_rl_view != nullptr) {
-                lnav_data.ld_rl_view->add_possibility(
-                    ln_mode_t::COMMAND, "highlight", args[1]);
-            }
-#endif
-
             retval = "info: highlight pattern now active";
         }
         tc->reload_data();
     } else {
         return ec.make_error("expecting a regular expression to highlight");
     }
+
+    return Ok(retval);
+}
+
+static Result<std::string, lnav::console::user_message>
+com_highlight_field(exec_context& ec,
+                    std::string cmdline,
+                    std::vector<std::string>& args)
+{
+    static auto& vc = view_colors::singleton();
+
+    CLI::App app{"highlight-field"};
+    std::string retval;
+    std::string field_name;
+    std::string fg_color;
+    std::string bg_color;
+    bool style_bold = false;
+    bool style_underline = false;
+    bool style_strike = false;
+    bool style_blink = false;
+    bool style_italic = false;
+
+    app.add_option("--color", fg_color);
+    app.add_option("--bg-color", bg_color);
+    app.add_flag("--bold", style_bold);
+    app.add_flag("--underline", style_underline);
+    app.add_flag("--strike", style_strike);
+    app.add_flag("--blink", style_blink);
+    app.add_flag("--italic", style_italic);
+    app.add_option("field", field_name);
+
+    size_t name_index = 1;
+    for (; name_index < args.size(); name_index++) {
+        if (!startswith(args[name_index], "-")) {
+            break;
+        }
+    }
+    if (name_index + 1 >= args.size()) {
+        return ec.make_error("expecting field name and pattern");
+    }
+
+    auto pat = trim(remaining_args(cmdline, args, name_index + 1));
+
+    std::vector<std::string> cli_args(args.begin() + 1,
+                                      args.begin() + name_index + 1);
+    std::vector<lnav::console::user_message> errors;
+
+    text_attrs attrs;
+    app.parse(cli_args);
+    if (!fg_color.empty()) {
+        attrs.ta_fg_color = vc.match_color(
+            styling::color_unit::from_str(fg_color).unwrapOrElse(
+                [&](const auto& msg) {
+                    errors.emplace_back(
+                        lnav::console::user_message::error(
+                            attr_line_t().append_quoted(fg_color).append(
+                                " is not a valid color value"))
+                            .with_reason(msg));
+                    return styling::color_unit::EMPTY;
+                }));
+    }
+    if (!bg_color.empty()) {
+        attrs.ta_bg_color = vc.match_color(
+            styling::color_unit::from_str(bg_color).unwrapOrElse(
+                [&](const auto& msg) {
+                    errors.emplace_back(
+                        lnav::console::user_message::error(
+                            attr_line_t().append_quoted(bg_color).append(
+                                " is not a valid background color value"))
+                            .with_reason(msg));
+                    return styling::color_unit::EMPTY;
+                }));
+    }
+    if (style_bold) {
+        attrs |= text_attrs::style::bold;
+    }
+    if (style_underline) {
+        attrs |= text_attrs::style::underline;
+    }
+    if (style_blink) {
+        attrs |= text_attrs::style::blink;
+    }
+    if (style_strike) {
+        attrs |= text_attrs::style::struck;
+    }
+    if (style_italic) {
+        attrs |= text_attrs::style::italic;
+    }
+    if (!errors.empty()) {
+        return Err(errors[0]);
+    }
+    if (field_name.empty()) {
+        return ec.make_error("field name cannot be empty");
+    }
+    if (attrs.empty()) {
+        attrs = vc.attrs_for_ident(pat);
+    }
+
+    auto compile_res = lnav::pcre2pp::code::from(pat, PCRE2_CASELESS);
+
+    if (compile_res.isErr()) {
+        const static intern_string_t PATTERN_SRC
+            = intern_string::lookup("pattern");
+        auto ce = compile_res.unwrapErr();
+        auto um = lnav::console::to_user_message(PATTERN_SRC, ce);
+        return Err(um);
+    }
+
+    intern_string_t field_name_i = intern_string::lookup(field_name);
+
+    auto re = compile_res.unwrap().to_shared();
+    lnav_data.ld_log_source.lss_highlighters.emplace_back(
+        highlighter(re)
+            .with_field(field_name_i)
+            .with_attrs(attrs)
+            .with_preview(ec.ec_dry_run));
 
     return Ok(retval);
 }
@@ -1354,7 +1463,7 @@ com_clear_highlight(exec_context& ec,
     std::string retval;
 
     if (args.size() > 1 && args[1][0] != '$') {
-        textview_curses* tc = *lnav_data.ld_view_stack.top();
+        auto* tc = *lnav_data.ld_view_stack.top();
         auto& hm = tc->get_highlights();
 
         args[1] = remaining_args(cmdline, args);
@@ -1368,19 +1477,40 @@ com_clear_highlight(exec_context& ec,
             hm.erase(hm_iter);
             retval = "info: highlight pattern cleared";
             tc->reload_data();
-
-#if 0
-            if (lnav_data.ld_rl_view != NULL) {
-                lnav_data.ld_rl_view->rem_possibility(
-                    ln_mode_t::COMMAND, "highlight", args[1]);
-            }
-#endif
         }
     } else {
         return ec.make_error("expecting highlight expression to clear");
     }
 
     return Ok(retval);
+}
+
+static Result<std::string, lnav::console::user_message>
+com_clear_highlight_field(exec_context& ec,
+                          std::string cmdline,
+                          std::vector<std::string>& args)
+{
+    std::string retval;
+
+    if (args.size() > 1) {
+        auto& tc = lnav_data.ld_views[LNV_LOG];
+        auto& log_hlv = lnav_data.ld_log_source.lss_highlighters;
+        auto new_end
+            = std::remove_if(log_hlv.begin(), log_hlv.end(), [&](auto& kv) {
+                  return kv.h_field == args[1];
+              });
+        if (new_end != log_hlv.end()) {
+            if (!ec.ec_dry_run) {
+                log_hlv.erase(new_end, log_hlv.end());
+                tc.reload_data();
+                retval = "info: removed field highlight";
+            }
+            return Ok(retval);
+        }
+
+        return ec.make_error("highlight does not exist -- {}", args[1]);
+    }
+    return ec.make_error("expecting highlighted field to clear");
 }
 
 static Result<std::string, lnav::console::user_message>
@@ -1979,7 +2109,8 @@ com_summarize(exec_context& ec,
     sql_progress_guard progress_guard(sql_progress,
                                       sql_progress_finished,
                                       top_source.s_location,
-                                      top_source.s_content);
+                                      top_source.s_content,
+                                      true);
     auto_mem<sqlite3_stmt> stmt(sqlite3_finalize);
     int retcode;
     std::string query;
@@ -3079,6 +3210,7 @@ readline_context::command_t STD_COMMANDS[] = {
             .with_parameter(help_text("--alt",
                                       "Perform the alternate action "
                                       "for this prompt by default")
+                                .with_format(help_parameter_format_t::HPF_NONE)
                                 .optional())
             .with_parameter(
                 help_text("prompt", "The prompt to display").optional())
@@ -3299,31 +3431,90 @@ readline_context::command_t STD_COMMANDS[] = {
 
         help_text(":help").with_summary("Open the help text view"),
     },
-    {"hide-unmarked-lines",
-     com_hide_unmarked,
+    {
+        "hide-unmarked-lines",
+        com_hide_unmarked,
 
-     help_text(":hide-unmarked-lines")
-         .with_summary("Hide lines that have not been bookmarked")
-         .with_tags({"filtering", "bookmarks"})},
-    {"show-unmarked-lines",
-     com_show_unmarked,
+        help_text(":hide-unmarked-lines")
+            .with_summary("Hide lines that have not been bookmarked")
+            .with_tags({"filtering", "bookmarks"}),
+    },
+    {
+        "show-unmarked-lines",
+        com_show_unmarked,
 
-     help_text(":show-unmarked-lines")
-         .with_summary("Show lines that have not been bookmarked")
-         .with_opposites({"show-unmarked-lines"})
-         .with_tags({"filtering", "bookmarks"})},
-    {"highlight",
-     com_highlight,
+        help_text(":show-unmarked-lines")
+            .with_summary("Show lines that have not been bookmarked")
+            .with_opposites({"show-unmarked-lines"})
+            .with_tags({"filtering", "bookmarks"}),
+    },
+    {
+        "highlight",
+        com_highlight,
 
-     help_text(":highlight")
-         .with_summary("Add coloring to log messages fragments "
-                       "that match the "
-                       "given regular expression")
-         .with_parameter(help_text("pattern", "The regular expression to match")
-                             .with_format(help_parameter_format_t::HPF_REGEX))
-         .with_tags({"display"})
-         .with_example(
-             {"To highlight numbers with three or more digits", R"(\d{3,})"})},
+        help_text(":highlight")
+            .with_summary("Add coloring to log messages fragments "
+                          "that match the "
+                          "given regular expression")
+            .with_parameter(
+                help_text("pattern", "The regular expression to match")
+                    .with_format(help_parameter_format_t::HPF_REGEX))
+            .with_tags({"display"})
+            .with_opposites({"clear-highlight"})
+            .with_example({"To highlight numbers with three or more digits",
+                           R"(\d{3,})"}),
+    },
+    {
+        "highlight-field",
+        com_highlight_field,
+
+        help_text(":highlight-field")
+            .with_summary("Highlight a field that matches the given pattern")
+            .with_parameter(
+                help_text("--color", "The foreground color to apply")
+                    .with_format(help_parameter_format_t::HPF_STRING)
+                    .optional())
+            .with_parameter(help_text("--bold", "Make the text bold")
+                                .with_format(help_parameter_format_t::HPF_NONE)
+                                .optional())
+            .with_parameter(help_text("--underline", "Underline the text")
+                                .with_format(help_parameter_format_t::HPF_NONE)
+                                .optional())
+            .with_parameter(help_text("--italic", "Italicize the text")
+                                .with_format(help_parameter_format_t::HPF_NONE)
+                                .optional())
+            .with_parameter(help_text("--strike", "Strikethrough the text")
+                                .with_format(help_parameter_format_t::HPF_NONE)
+                                .optional())
+            .with_parameter(help_text("--blink", "Make the text blink")
+                                .with_format(help_parameter_format_t::HPF_NONE)
+                                .optional())
+            .with_parameter(
+                help_text("field", "The name of the field to highlight")
+                    .with_format(help_parameter_format_t::HPF_FORMAT_FIELD))
+            .with_parameter(
+                help_text("pattern", "The regular expression to match")
+                    .with_format(help_parameter_format_t::HPF_REGEX))
+            .with_tags({"display"})
+            .with_opposites({"clear-highlight-field"})
+            .with_example({"To color status values that start with '2' green",
+                           R"(--color=green sc_status ^2.*)"}),
+    },
+    {
+        "clear-highlight-field",
+        com_clear_highlight_field,
+
+        help_text(":clear-highlight-field")
+            .with_summary("Remove a field highlight")
+            .with_parameter(
+                help_text("field", "The name of highlighted field")
+                    .with_format(
+                        help_parameter_format_t::HPF_HIGHLIGHTED_FIELD))
+            .with_tags({"display"})
+            .with_opposites({"highlight-field"})
+            .with_example({"To clear the highlights for the 'sc_status' field",
+                           "sc_status"}),
+    },
     {
         "clear-highlight",
         com_clear_highlight,

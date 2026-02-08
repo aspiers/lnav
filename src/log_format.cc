@@ -2412,6 +2412,7 @@ external_log_format::rewrite(exec_context& ec,
                              string_attrs_t& sa,
                              std::string& value_out)
 {
+    auto pg = ec.with_provenance(exec_context::format_rewrite{});
     auto& values = *ec.ec_line_values;
 
     value_out.assign(line.get_data(), line.length());
@@ -4388,6 +4389,69 @@ external_log_format::build(std::vector<lnav::console::user_message>& errors)
         }
 
         vd->set_rewrite_src_name();
+
+        for (auto& hd_pair : vd->vd_highlighter_patterns) {
+            auto& hd = hd_pair.second;
+            text_attrs attrs;
+
+            if (!hd.hd_color.pp_value.empty()) {
+                attrs.ta_fg_color = vc.match_color(
+                    styling::color_unit::from_str(hd.hd_color.pp_value)
+                        .unwrapOrElse([&](const auto& msg) {
+                            errors.emplace_back(
+                                lnav::console::user_message::error(
+                                    attr_line_t()
+                                        .append_quoted(hd.hd_color.pp_value)
+                                        .append(
+                                            " is not a valid color value for "
+                                            "property ")
+                                        .append_quoted(lnav::roles::symbol(
+                                            hd.hd_color.pp_path.to_string())))
+                                    .with_reason(msg)
+                                    .with_snippet(hd.hd_color.to_snippet()));
+                            return styling::color_unit::EMPTY;
+                        }));
+            }
+
+            if (!hd.hd_background_color.pp_value.empty()) {
+                attrs.ta_bg_color = vc.match_color(
+                    styling::color_unit::from_str(
+                        hd.hd_background_color.pp_value)
+                        .unwrapOrElse([&](const auto& msg) {
+                            errors.emplace_back(
+                                lnav::console::user_message::error(
+                                    attr_line_t()
+                                        .append_quoted(
+                                            hd.hd_background_color.pp_value)
+                                        .append(
+                                            " is not a valid color value for "
+                                            "property ")
+                                        .append_quoted(lnav::roles::symbol(
+                                            hd.hd_background_color.pp_path
+                                                .to_string())))
+                                    .with_reason(msg)
+                                    .with_snippet(
+                                        hd.hd_background_color.to_snippet()));
+                            return styling::color_unit::EMPTY;
+                        }));
+            }
+
+            if (hd.hd_underline) {
+                attrs |= text_attrs::style::underline;
+            }
+            if (hd.hd_blink) {
+                attrs |= text_attrs::style::blink;
+            }
+
+            if (hd.hd_pattern.pp_value != nullptr) {
+                this->lf_highlighters.emplace_back(hd.hd_pattern.pp_value);
+                this->lf_highlighters.back()
+                    .with_field(vd->vd_meta.lvm_name)
+                    .with_name(hd_pair.first.to_string())
+                    .with_attrs(attrs)
+                    .with_nestable(hd.hd_nestable);
+            }
+        }
     }
 
     if (this->elf_type == elf_type_t::ELF_TYPE_JSON) {
@@ -4734,7 +4798,6 @@ external_log_format::build(std::vector<lnav::console::user_message>& errors)
             this->lf_highlighters.emplace_back(hd.hd_pattern.pp_value);
             this->lf_highlighters.back()
                 .with_name(hd_pair.first.to_string())
-                .with_format_name(this->elf_name)
                 .with_attrs(attrs)
                 .with_nestable(hd.hd_nestable);
         }

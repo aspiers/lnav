@@ -854,6 +854,19 @@ For support questions, email:
    
 
 
+[4m:[0m[1m[4mclear-highlight-field[0m[4m [0m[4mfield[0m
+══════════════════════════════════════════════════════════════════════
+  Remove a field highlight
+[4mParameter[0m
+  [4mfield[0m   The name of highlighted field
+[4mSee Also[0m
+  [1m:enable-word-wrap[0m, [1m:hide-fields[0m, [1m:highlight-field[0m, [1m:set-text-view-mode[0m
+[4mExample[0m
+#1 To clear the highlights for the 'sc_status' field:
+   [37m[40m:[0m[1m[36m[40mclear-highlight-field[0m[37m[40m sc_status                  [0m
+   
+
+
 [4m:[0m[1m[4mclear-mark-expr[0m
 ══════════════════════════════════════════════════════════════════════
   Clear the mark expression
@@ -1040,7 +1053,7 @@ For support questions, email:
 ══════════════════════════════════════════════════════════════════════
   Disable word-wrapping for the current view
 [4mSee Also[0m
-  [1m:enable-word-wrap[0m, [1m:hide-fields[0m, [1m:highlight[0m, [1m:set-text-view-mode[0m
+  [1m:enable-word-wrap[0m, [1m:hide-fields[0m, [1m:set-text-view-mode[0m
 
 [4m:[0m[1m[4mecho[0m[4m [[0m[4m-n[0m[4m] [0m[4mmsg[0m
 ══════════════════════════════════════════════════════════════════════
@@ -1086,7 +1099,7 @@ For support questions, email:
 ══════════════════════════════════════════════════════════════════════
   Enable word-wrapping for the current view
 [4mSee Also[0m
-  [1m:disable-word-wrap[0m, [1m:hide-fields[0m, [1m:highlight[0m, [1m:set-text-view-mode[0m
+  [1m:disable-word-wrap[0m, [1m:hide-fields[0m, [1m:set-text-view-mode[0m
 
 [4m:[0m[1m[4meval[0m[4m [0m[4mcommand[0m
 ══════════════════════════════════════════════════════════════════════
@@ -1241,7 +1254,7 @@ For support questions, email:
                be used where the field name is prefixed by the format
                name and a dot to hide any field.
 [4mSee Also[0m
-  [1m:enable-word-wrap[0m, [1m:highlight[0m, [1m:set-text-view-mode[0m, [1m:show-fields[0m
+  [1m:enable-word-wrap[0m, [1m:set-text-view-mode[0m, [1m:show-fields[0m
 [4mExamples[0m
 #1 To hide the log_procname fields in all formats:
    [37m[40m:[0m[1m[36m[40mhide-fields[0m[37m[40m log_procname                         [0m
@@ -1315,6 +1328,27 @@ For support questions, email:
 [4mExample[0m
 #1 To highlight numbers with three or more digits:
    [37m[40m:[0m[1m[36m[40mhighlight[0m[37m[40m [0m[1m[37m[40m\d[0m[1m[32m[40m{[0m[37m[40m3,[0m[1m[32m[40m}[0m[37m[40m                                 [0m
+   
+
+
+[4m:[0m[1m[4mhighlight-field[0m[4m [[0m[4m--color[0m[4m] [[0m[4m--bold[0m[4m] [[0m[4m--underline[0m[4m] [[0m[4m--italic[0m[4m] [[0m[4m--strike[0m[4m] [[0m[4m--blink[0m[4m] [0m[4mfield[0m[4m [0m[4mpattern[0m
+══════════════════════════════════════════════════════════════════════
+  Highlight a field that matches the given pattern
+[4mParameters[0m
+  [4m--color[0m       The foreground color to apply
+  [4m--bold[0m        Make the text bold
+  [4m--underline[0m   Underline the text
+  [4m--italic[0m      Italicize the text
+  [4m--strike[0m      Strikethrough the text
+  [4m--blink[0m       Make the text blink
+  [4mfield[0m         The name of the field to highlight
+  [4mpattern[0m       The regular expression to match
+[4mSee Also[0m
+  [1m:clear-highlight-field[0m, [1m:enable-word-wrap[0m, [1m:hide-fields[0m, 
+  [1m:set-text-view-mode[0m
+[4mExample[0m
+#1 To color status values that start with '2' green:
+   [37m[40m:[0m[1m[36m[40mhighlight-field[0m[37m[40m --color=green sc_status [0m[1m[36m[40m^[0m[37m[40m2[0m[1m[36m[40m.[0m[1m[36m[40m*[0m[37m[40m     [0m
    
 
 
@@ -1628,7 +1662,7 @@ For support questions, email:
   [4mmode[0m   The display mode
          [4mValues[0m: [1mraw[0m|[1mrendered[0m
 [4mSee Also[0m
-  [1m:enable-word-wrap[0m, [1m:hide-fields[0m, [1m:highlight[0m
+  [1m:enable-word-wrap[0m, [1m:hide-fields[0m
 
 [4m:[0m[1m[4msh[0m[4m [0m[4m--name=<name>[0m[4m [0m[4mcmdline[0m
 ══════════════════════════════════════════════════════════════════════
@@ -1650,7 +1684,7 @@ For support questions, email:
 [4mParameter[0m
   [4mfield-name[0m   The name of the field to show
 [4mSee Also[0m
-  [1m:enable-word-wrap[0m, [1m:hide-fields[0m, [1m:highlight[0m, [1m:set-text-view-mode[0m
+  [1m:enable-word-wrap[0m, [1m:hide-fields[0m, [1m:set-text-view-mode[0m
 [4mExample[0m
 #1 To show all the log_procname fields in all formats:
    [37m[40m:[0m[1m[36m[40mshow-fields[0m[37m[40m log_procname                         [0m

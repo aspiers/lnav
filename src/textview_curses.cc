@@ -865,13 +865,6 @@ textview_curses::apply_highlights(attr_line_t& al,
                                   const line_range& body,
                                   const line_range& orig_line)
 {
-    intern_string_t format_name;
-
-    auto format_attr_opt = get_string_attr(al.al_attrs, SA_FORMAT);
-    if (format_attr_opt.has_value()) {
-        format_name = format_attr_opt.value().get();
-    }
-
     auto source_format = this->tc_sub_source->get_text_format();
     if (source_format.value_or(text_format_t::TF_BINARY)
         == text_format_t::TF_BINARY)
@@ -884,12 +877,6 @@ textview_curses::apply_highlights(attr_line_t& al,
             || tc_highlight.first.first == highlight_source_t::THEME;
 
         if (!tc_highlight.second.applies_to_format(source_format.value())) {
-            continue;
-        }
-
-        if (!tc_highlight.second.h_format_name.empty()
-            && tc_highlight.second.h_format_name != format_name)
-        {
             continue;
         }
 
@@ -920,15 +907,13 @@ textview_curses::textview_value_for_row(vis_line_t row, attr_line_t& value_out)
         require_ge(attr.sa_range.lr_start, 0);
     }
 
-    line_range body, orig_line;
-
-    body = find_string_attr_range(sa, &SA_BODY);
+    auto body = find_string_attr_range(sa, &SA_BODY);
     if (!body.is_valid()) {
         body.lr_start = 0;
         body.lr_end = str.size();
     }
 
-    orig_line = find_string_attr_range(sa, &SA_ORIGINAL_LINE);
+    auto orig_line = find_string_attr_range(sa, &SA_ORIGINAL_LINE);
     if (!orig_line.is_valid()) {
         orig_line.lr_start = 0;
         orig_line.lr_end = str.size();

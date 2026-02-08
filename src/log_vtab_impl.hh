@@ -402,11 +402,14 @@ public:
     sql_progress_guard(sql_progress_callback_t cb,
                        sql_progress_finished_callback_t fcb,
                        source_location loc,
-                       const attr_line_t& content)
+                       const attr_line_t& content,
+                       bool run_cb)
     {
         log_vtab_data.lvd_looping = true;
-        log_vtab_data.lvd_progress = cb;
-        log_vtab_data.lvd_finished = fcb;
+        if (run_cb) {
+            log_vtab_data.lvd_progress = cb;
+            log_vtab_data.lvd_finished = fcb;
+        }
         log_vtab_data.lvd_location = loc;
         log_vtab_data.lvd_content = content;
     }

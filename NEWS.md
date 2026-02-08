@@ -29,6 +29,12 @@ Features:
   has been translated to Python3.  If the remote host
   does not have Python, lnav will fall back to the APE
   binary.
+* Highlights can now be applied to a particular field
+  instead of the whole line.  For log formats, a
+  `value` entry can now have a `highlights` object
+  that contains definitions for the pattern to match
+  and the style to apply.  For interactive use, the
+  `:highlight-field` command was added.
 * The "Files" panel now shows a progress bar for each
   file as it is being indexed and finishes with a
   check-mark if indexing was successful, a warning

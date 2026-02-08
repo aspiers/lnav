@@ -1455,7 +1455,6 @@ VALUES ('org.lnav.mouse-support', -1, DATETIME('now', '+1 minute'),
 
     lnav_data.ld_window = sc.get_std_plane();
 
-    auto& vc = view_colors::singleton();
     view_colors::init(sc.get_notcurses());
 
     auto ecb_guard
@@ -1479,18 +1478,6 @@ VALUES ('org.lnav.mouse-support', -1, DATETIME('now', '+1 minute'),
         setup_highlights(lnav_data.ld_views[LNV_PRETTY].get_highlights());
         setup_highlights(lnav_data.ld_preview_view[0].get_highlights());
         setup_highlights(lnav_data.ld_preview_view[1].get_highlights());
-
-        for (const auto& format : log_format::get_root_formats()) {
-            for (auto& hl : format->lf_highlighters) {
-                if (hl.h_attrs.empty()) {
-                    hl.with_attrs(vc.attrs_for_ident(hl.h_name));
-                }
-
-                lnav_data.ld_views[LNV_LOG].get_highlights()[{
-                    highlight_source_t::CONFIGURATION,
-                    format->get_name().to_string() + "-" + hl.h_name}] = hl;
-            }
-        }
     }
 
     auto& prompt = lnav::prompt::get();

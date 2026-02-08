@@ -1782,6 +1782,7 @@ reset_session()
     }
 
     // XXX clean this up
+    lnav_data.ld_log_source.lss_highlighters.clear();
     lnav_data.ld_log_source.set_force_rebuild();
     lnav_data.ld_log_source.set_marked_only(false);
     lnav_data.ld_log_source.set_min_log_level(LEVEL_UNKNOWN);

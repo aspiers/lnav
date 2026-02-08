@@ -66,11 +66,13 @@ highlighter::annotate_capture(attr_line_t& al, const line_range& lr) const
     }
 }
 
-void
+bool
 highlighter::annotate(attr_line_t& al, const line_range& lr) const
 {
+    auto retval = false;
+
     if (!this->h_regex) {
-        return;
+        return retval;
     }
 
     auto& vc = view_colors::singleton();
@@ -82,11 +84,12 @@ highlighter::annotate(attr_line_t& al, const line_range& lr) const
         std::min(size_t{8192}, std::min((size_t) lr.lr_end, str.size())));
 
     if (!sf.is_valid()) {
-        return;
+        return retval;
     }
 
     this->h_regex->capture_from(sf).for_each<PCRE2_NO_UTF_CHECK>(
         [&](lnav::pcre2pp::match_data& md) {
+            retval = true;
             if (md.get_count() == 1) {
                 this->annotate_capture(al, to_line_range(md[0].value()));
             } else {
@@ -114,4 +117,6 @@ highlighter::annotate(attr_line_t& al, const line_range& lr) const
                 }
             }
         });
+
+    return retval;
 }

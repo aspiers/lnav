@@ -342,6 +342,7 @@ parse_for(mode_t mode,
                     case help_parameter_format_t::HPF_LOADED_FILE:
                     case help_parameter_format_t::HPF_FORMAT_FIELD:
                     case help_parameter_format_t::HPF_NUMERIC_FIELD:
+                    case help_parameter_format_t::HPF_HIGHLIGHTED_FIELD:
                     case help_parameter_format_t::HPF_TIMEZONE:
                     case help_parameter_format_t::HPF_FILE_WITH_ZONE:
                     case help_parameter_format_t::HPF_VISIBLE_FILES:

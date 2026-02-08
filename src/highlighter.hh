@@ -34,14 +34,15 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "base/attr_line.hh"
 #include "base/intern_string.hh"
+#include "base/line_range.hh"
 #include "base/map_util.hh"
 #include "base/string_attr_type.hh"
 #include "base/text_format_enum.hh"
 #include "pcrepp/pcre2pp_fwd.hh"
-#include "styling.hh"
 
 struct highlighter {
     highlighter() = default;
@@ -52,6 +53,12 @@ struct highlighter {
     }
 
     virtual ~highlighter() = default;
+
+    highlighter& with_field(intern_string_t field)
+    {
+        this->h_field = field;
+        return *this;
+    }
 
     highlighter& with_role(role_t role)
     {
@@ -74,13 +81,6 @@ struct highlighter {
         return *this;
     }
 
-    highlighter& with_format_name(intern_string_t name)
-    {
-        this->h_format_name = name;
-
-        return *this;
-    }
-
     highlighter& with_name(std::string name)
     {
         this->h_name = std::move(name);
@@ -93,9 +93,15 @@ struct highlighter {
         return *this;
     }
 
+    highlighter& with_preview(bool val)
+    {
+        this->h_preview = val;
+        return *this;
+    }
+
     text_attrs get_attrs() const { return this->h_attrs; }
 
-    void annotate(attr_line_t& al, const line_range& lr) const;
+    bool annotate(attr_line_t& al, const line_range& lr) const;
 
     void annotate_capture(attr_line_t& al, const line_range& lr) const;
 
@@ -106,12 +112,13 @@ struct highlighter {
     }
 
     std::string h_name;
+    intern_string_t h_field;
     role_t h_role{role_t::VCR_NONE};
     std::shared_ptr<lnav::pcre2pp::code> h_regex;
     text_attrs h_attrs;
     lnav::set::small<text_format_t> h_text_formats;
-    intern_string_t h_format_name;
     bool h_nestable{true};
+    bool h_preview{false};
 };
 
 #endif

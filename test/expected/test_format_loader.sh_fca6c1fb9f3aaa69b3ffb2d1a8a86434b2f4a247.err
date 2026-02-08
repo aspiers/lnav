@@ -43,6 +43,7 @@
            [1maction-list[0m [4m<string>[0m
            [1mrewriter[0m [4m<command>[0m
            [1mdescription[0m [4m<string>[0m
+           [1mhighlights[0m[1m/[0m
 [1m[31m✘[0m [1m[31merror[0m: “-1.2” is not a valid value for “[1m/invalid_key_log/timestamp-divisor[0m”
  [1m[31mreason[0m: value cannot be less than or equal to zero
 [36m --> [0m[1m{test_dir}/bad-config-json/formats/invalid-key/format.json[0m:25

@@ -1449,6 +1449,20 @@ prompt::get_cmd_parameter_completion(textview_curses& tc,
                          });
                 break;
             }
+            case help_parameter_format_t::HPF_HIGHLIGHTED_FIELD: {
+                std::vector<std::string> poss_strs;
+                for (const auto& hl : lnav_data.ld_log_source.lss_highlighters)
+                {
+                    poss_strs.emplace_back(hl.h_field.to_string());
+                }
+
+                retval = poss_strs | lnav::itertools::similar_to(str, 10)
+                    | lnav::itertools::map([](const auto& x) {
+                             return attr_line_t().append(x).with_attr_for_all(
+                                 SUBST_TEXT.value(x));
+                         });
+                break;
+            }
             case help_parameter_format_t::HPF_ALL_FILTERS:
             case help_parameter_format_t::HPF_ENABLED_FILTERS:
             case help_parameter_format_t::HPF_DISABLED_FILTERS: {

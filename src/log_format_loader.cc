@@ -608,6 +608,68 @@ static const struct json_path_container unit_handlers = {
         .with_children(scale_handlers),
 };
 
+static const struct json_path_container highlighter_def_handlers = {
+    yajlpp::property_handler("pattern")
+        .with_synopsis("<regex>")
+        .with_description(
+            "A regular expression to highlight in logs of this format.")
+        .for_field(&external_log_format::highlighter_def::hd_pattern),
+
+    yajlpp::property_handler("color")
+        .with_synopsis("#<hex>|<name>")
+        .with_description("The color to use when highlighting this pattern.")
+        .for_field(&external_log_format::highlighter_def::hd_color),
+
+    yajlpp::property_handler("background-color")
+        .with_synopsis("#<hex>|<name>")
+        .with_description(
+            "The background color to use when highlighting this pattern.")
+        .for_field(&external_log_format::highlighter_def::hd_background_color),
+
+    yajlpp::property_handler("underline")
+        .with_synopsis("<enabled>")
+        .with_description("Highlight this pattern with an underline.")
+        .for_field(&external_log_format::highlighter_def::hd_underline),
+
+    yajlpp::property_handler("blink")
+        .with_synopsis("<enabled>")
+        .with_description("Highlight this pattern by blinking.")
+        .for_field(&external_log_format::highlighter_def::hd_blink),
+    yajlpp::property_handler("nestable")
+        .with_synopsis("<enabled>")
+        .with_description("This highlight can be nested in another highlight.")
+        .for_field(&external_log_format::highlighter_def::hd_nestable),
+};
+
+static const struct json_path_container highlight_handlers = {
+    yajlpp::pattern_property_handler(R"((?<highlight_name>[^/]+))")
+        .with_description("The definition of a highlight")
+        .with_obj_provider<external_log_format::highlighter_def,
+                           external_log_format>(
+            [](const yajlpp_provider_context& ypc, external_log_format* root) {
+                auto* retval
+                    = &(root->elf_highlighter_patterns[ypc.get_substr_i(0)]);
+
+                return retval;
+            })
+        .with_children(highlighter_def_handlers),
+};
+
+static const struct json_path_container value_highlight_handlers = {
+    yajlpp::pattern_property_handler(R"((?<highlight_name>[^/]+))")
+        .with_description("The definition of a highlight")
+        .with_obj_provider<external_log_format::highlighter_def,
+                           external_log_format::value_def>(
+            [](const yajlpp_provider_context& ypc,
+               external_log_format::value_def* root) {
+                auto* retval
+                    = &(root->vd_highlighter_patterns[ypc.get_substr_i(0)]);
+
+                return retval;
+            })
+        .with_children(highlighter_def_handlers),
+};
+
 static const struct json_path_container value_def_handlers = {
     yajlpp::property_handler("kind")
         .with_synopsis("<data-type>")
@@ -664,39 +726,10 @@ static const struct json_path_container value_def_handlers = {
         .with_synopsis("<string>")
         .with_description("A description of the field")
         .for_field(&external_log_format::value_def::vd_description),
-};
 
-static const struct json_path_container highlighter_def_handlers = {
-    yajlpp::property_handler("pattern")
-        .with_synopsis("<regex>")
-        .with_description(
-            "A regular expression to highlight in logs of this format.")
-        .for_field(&external_log_format::highlighter_def::hd_pattern),
-
-    yajlpp::property_handler("color")
-        .with_synopsis("#<hex>|<name>")
-        .with_description("The color to use when highlighting this pattern.")
-        .for_field(&external_log_format::highlighter_def::hd_color),
-
-    yajlpp::property_handler("background-color")
-        .with_synopsis("#<hex>|<name>")
-        .with_description(
-            "The background color to use when highlighting this pattern.")
-        .for_field(&external_log_format::highlighter_def::hd_background_color),
-
-    yajlpp::property_handler("underline")
-        .with_synopsis("<enabled>")
-        .with_description("Highlight this pattern with an underline.")
-        .for_field(&external_log_format::highlighter_def::hd_underline),
-
-    yajlpp::property_handler("blink")
-        .with_synopsis("<enabled>")
-        .with_description("Highlight this pattern by blinking.")
-        .for_field(&external_log_format::highlighter_def::hd_blink),
-    yajlpp::property_handler("nestable")
-        .with_synopsis("<enabled>")
-        .with_description("This highlight can be nested in another highlight.")
-        .for_field(&external_log_format::highlighter_def::hd_nestable),
+    yajlpp::property_handler("highlights")
+        .with_description("The set of highlight definitions")
+        .with_children(value_highlight_handlers),
 };
 
 static const struct json_path_container sample_handlers = {
@@ -815,20 +848,6 @@ static const struct json_path_container partition_handlers = {
         .with_description("The type of partition to apply")
         .with_obj_provider(format_partition_def_provider)
         .with_children(format_partition_def_handlers),
-};
-
-static const struct json_path_container highlight_handlers = {
-    yajlpp::pattern_property_handler(R"((?<highlight_name>[^/]+))")
-        .with_description("The definition of a highlight")
-        .with_obj_provider<external_log_format::highlighter_def,
-                           external_log_format>(
-            [](const yajlpp_provider_context& ypc, external_log_format* root) {
-                auto* retval
-                    = &(root->elf_highlighter_patterns[ypc.get_substr_i(0)]);
-
-                return retval;
-            })
-        .with_children(highlighter_def_handlers),
 };
 
 static const struct json_path_container action_def_handlers = {

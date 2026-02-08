@@ -233,6 +233,29 @@
 ----
 
 
+.. _clear_highlight_field:
+
+:clear-highlight-field *field*
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  Remove a field highlight
+
+  **Parameters**
+    * **field\*** --- The name of highlighted field
+
+  **Examples**
+    To clear the highlights for the 'sc_status' field:
+
+    .. code-block::  lnav
+
+      :clear-highlight-field sc_status
+
+  **See Also**
+    :ref:`enable_word_wrap`, :ref:`hide_fields`, :ref:`highlight_field`, :ref:`set_text_view_mode`
+
+----
+
+
 .. _clear_mark_expr:
 
 :clear-mark-expr
@@ -523,7 +546,7 @@
   Disable word-wrapping for the current view
 
   **See Also**
-    :ref:`enable_word_wrap`, :ref:`hide_fields`, :ref:`highlight`, :ref:`set_text_view_mode`
+    :ref:`enable_word_wrap`, :ref:`hide_fields`, :ref:`set_text_view_mode`
 
 ----
 
@@ -583,7 +606,7 @@
   Enable word-wrapping for the current view
 
   **See Also**
-    :ref:`disable_word_wrap`, :ref:`hide_fields`, :ref:`highlight`, :ref:`set_text_view_mode`
+    :ref:`disable_word_wrap`, :ref:`hide_fields`, :ref:`set_text_view_mode`
 
 ----
 
@@ -811,7 +834,7 @@
       :hide-fields syslog_log.log_procname
 
   **See Also**
-    :ref:`enable_word_wrap`, :ref:`highlight`, :ref:`set_text_view_mode`, :ref:`show_fields`
+    :ref:`enable_word_wrap`, :ref:`set_text_view_mode`, :ref:`show_fields`
 
 ----
 
@@ -920,6 +943,36 @@
 
   **See Also**
     :ref:`clear_highlight`, :ref:`enable_word_wrap`, :ref:`hide_fields`, :ref:`set_text_view_mode`
+
+----
+
+
+.. _highlight_field:
+
+:highlight-field *\[--color\]* *\[--bold\]* *\[--underline\]* *\[--italic\]* *\[--strike\]* *\[--blink\]* *field* *pattern*
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  Highlight a field that matches the given pattern
+
+  **Parameters**
+    * **--color** --- The foreground color to apply
+    * **--bold** --- Make the text bold
+    * **--underline** --- Underline the text
+    * **--italic** --- Italicize the text
+    * **--strike** --- Strikethrough the text
+    * **--blink** --- Make the text blink
+    * **field\*** --- The name of the field to highlight
+    * **pattern\*** --- The regular expression to match
+
+  **Examples**
+    To color status values that start with '2' green:
+
+    .. code-block::  lnav
+
+      :highlight-field --color=green sc_status ^2.*
+
+  **See Also**
+    :ref:`clear_highlight_field`, :ref:`enable_word_wrap`, :ref:`hide_fields`, :ref:`set_text_view_mode`
 
 ----
 
@@ -1401,7 +1454,7 @@
     * **mode\*** --- The display mode
 
   **See Also**
-    :ref:`enable_word_wrap`, :ref:`hide_fields`, :ref:`highlight`
+    :ref:`enable_word_wrap`, :ref:`hide_fields`
 
 ----
 
@@ -1441,7 +1494,7 @@
       :show-fields log_procname
 
   **See Also**
-    :ref:`enable_word_wrap`, :ref:`hide_fields`, :ref:`highlight`, :ref:`set_text_view_mode`
+    :ref:`enable_word_wrap`, :ref:`hide_fields`, :ref:`set_text_view_mode`
 
 ----
 

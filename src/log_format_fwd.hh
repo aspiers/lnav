@@ -680,6 +680,7 @@ public:
     int lv_sub_offset{0};
     intern_string_t lv_intern_string;
     line_range lv_origin;
+    bool lv_highlighted{false};
 };
 
 struct logline_value_vector {

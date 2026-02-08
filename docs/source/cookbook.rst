@@ -7,6 +7,19 @@ This chapter contains recipes for common tasks that can be done in **lnav**.
 These recipes can be used as a starting point for your own needs after some
 adaptation.
 
+Custom Web Access Log Highlights
+--------------------------------
+
+To highlight log message fields with custom colors based on their values, you
+can install a file that patches the format with the desired highlights.
+The following patch updates the :code:`access_log` format.  A
+:code:`highlights` entry is added to the :code:`value/sc_status` object that
+applies a color for codes of interest.
+
+.. literalinclude:: ../../example-scripts/access_log_highlights.json
+   :language: json
+   :caption: access_log_highlights.json
+   :linenos:
 
 Annotating Logs
 ---------------

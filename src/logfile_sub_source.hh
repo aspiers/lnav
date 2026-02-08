@@ -685,15 +685,12 @@ public:
         return this->lss_indexing_in_progress;
     }
 
-    void clear_preview()
-    {
-        text_sub_source::clear_preview();
-
-        this->set_preview_sql_filter(nullptr);
-    }
+    void clear_preview();
 
     void add_commands_for_session(
         const std::function<void(const std::string&)>& receiver);
+
+    std::vector<highlighter> lss_highlighters;
 
 protected:
     void text_accel_display_changed() { this->clear_line_size_cache(); }
@@ -732,8 +729,7 @@ private:
     line_flags_t lss_token_flags{0};
     iterator lss_token_file_data;
     std::shared_ptr<logfile> lss_token_file;
-    std::string lss_token_value;
-    string_attrs_t lss_token_attrs;
+    attr_line_t lss_token_al;
     lnav::document::metadata lss_token_meta;
     int lss_token_meta_line{-1};
     int lss_token_meta_size{0};

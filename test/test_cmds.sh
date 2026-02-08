@@ -496,6 +496,33 @@ run_cap_test ${lnav_test} -n \
     ${test_dir}/logfile_access_log.0
 
 run_cap_test ${lnav_test} -n \
+    -c ":highlight-field --underline sc_status ^4.*" \
+    ${test_dir}/logfile_access_log.0
+
+run_cap_test ${lnav_test} -n \
+    -c ":highlight-field --underline sc_status ^4.*" \
+    -c ":highlight-field --bg-color=green sc_status ^2.*" \
+    ${test_dir}/logfile_access_log.0
+
+run_cap_test ${lnav_test} -n \
+    -c ":highlight-field --underline sc_status ^4.*" \
+    -c ":highlight-field --bg-color=green sc_status ^2.*" \
+    -c ":clear-highlight-field sc_status" \
+    ${test_dir}/logfile_access_log.0
+
+run_cap_test ${lnav_test} -n \
+    -c ":highlight-field --color=blah sc_status ^4.*" \
+    ${test_dir}/logfile_access_log.0
+
+run_cap_test ${lnav_test} -n \
+    -c ":highlight-field sc_status ^(" \
+    ${test_dir}/logfile_access_log.0
+
+run_cap_test ${lnav_test} -n \
+    -c ":highlight-field sc_status" \
+    ${test_dir}/logfile_access_log.0
+
+run_cap_test ${lnav_test} -n \
     -c ":clear-highlight foobar" \
     ${test_dir}/logfile_access_log.0
 

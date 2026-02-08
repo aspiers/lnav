@@ -471,6 +471,52 @@
                                     "title": "/<format_name>/value/<value_name>/description",
                                     "description": "A description of the field",
                                     "type": "string"
+                                },
+                                "highlights": {
+                                    "description": "The set of highlight definitions",
+                                    "title": "/<format_name>/value/<value_name>/highlights",
+                                    "type": "object",
+                                    "patternProperties": {
+                                        "^(.+)$": {
+                                            "description": "The definition of a highlight",
+                                            "title": "/<format_name>/value/<value_name>/highlights/<highlight_name>",
+                                            "type": "object",
+                                            "properties": {
+                                                "pattern": {
+                                                    "title": "/<format_name>/value/<value_name>/highlights/<highlight_name>/pattern",
+                                                    "description": "A regular expression to highlight in logs of this format.",
+                                                    "type": "string"
+                                                },
+                                                "color": {
+                                                    "title": "/<format_name>/value/<value_name>/highlights/<highlight_name>/color",
+                                                    "description": "The color to use when highlighting this pattern.",
+                                                    "type": "string"
+                                                },
+                                                "background-color": {
+                                                    "title": "/<format_name>/value/<value_name>/highlights/<highlight_name>/background-color",
+                                                    "description": "The background color to use when highlighting this pattern.",
+                                                    "type": "string"
+                                                },
+                                                "underline": {
+                                                    "title": "/<format_name>/value/<value_name>/highlights/<highlight_name>/underline",
+                                                    "description": "Highlight this pattern with an underline.",
+                                                    "type": "boolean"
+                                                },
+                                                "blink": {
+                                                    "title": "/<format_name>/value/<value_name>/highlights/<highlight_name>/blink",
+                                                    "description": "Highlight this pattern by blinking.",
+                                                    "type": "boolean"
+                                                },
+                                                "nestable": {
+                                                    "title": "/<format_name>/value/<value_name>/highlights/<highlight_name>/nestable",
+                                                    "description": "This highlight can be nested in another highlight.",
+                                                    "type": "boolean"
+                                                }
+                                            },
+                                            "additionalProperties": false
+                                        }
+                                    },
+                                    "additionalProperties": false
                                 }
                             },
                             "additionalProperties": false

@@ -43,6 +43,16 @@
 
 class external_log_format : public log_format {
 public:
+    struct highlighter_def {
+        factory_container<lnav::pcre2pp::code> hd_pattern;
+        positioned_property<intern_string_t> hd_field;
+        positioned_property<std::string> hd_color;
+        positioned_property<std::string> hd_background_color;
+        bool hd_underline{false};
+        bool hd_blink{false};
+        bool hd_nestable{true};
+    };
+
     struct value_def {
         value_def(intern_string_t name,
                   value_kind_t kind,
@@ -71,6 +81,8 @@ public:
         intern_string_t vd_rewrite_src_name;
         std::optional<size_t> vd_line_format_index;
         bool vd_is_desc_field{false};
+        std::map<const intern_string_t, highlighter_def>
+            vd_highlighter_patterns;
     };
 
     struct indexed_value_def {
@@ -264,15 +276,6 @@ public:
 
         json_log_field jfc_type;
         const intern_string_t jfc_field_name;
-    };
-
-    struct highlighter_def {
-        factory_container<lnav::pcre2pp::code> hd_pattern;
-        positioned_property<std::string> hd_color;
-        positioned_property<std::string> hd_background_color;
-        bool hd_underline{false};
-        bool hd_blink{false};
-        bool hd_nestable{true};
     };
 
     struct value_line_count_result {
