@@ -741,7 +741,11 @@ CREATE TABLE lnav_db.lnav_views (
             tc.set_overlay_selection(vis_line_t(vo.vo_overlay_focus.value()));
         }
         if (vo.vo_word_wrap) {
-            tc.set_word_wrap(vo.vo_word_wrap.value() == word_wrap_t::normal);
+            auto wrap_words = vo.vo_word_wrap.value() == word_wrap_t::normal;
+            tc.set_word_wrap(wrap_words);
+            if (wrap_words) {
+                left = 0; // reset horizontal scroll position
+            }
         }
         if (vo.vo_hidden_fields) {
             tc.set_hide_fields(vo.vo_hidden_fields.value()
